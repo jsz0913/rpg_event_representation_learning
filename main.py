@@ -1,13 +1,15 @@
 import argparse
 from os.path import dirname
+
 import torch
 import torchvision
 import os
 import numpy as np
 import tqdm
 
-from utils.models import Classifier
 from torch.utils.tensorboard import SummaryWriter
+
+from utils.models import Classifier
 from utils.loader import Loader
 from utils.loss import cross_entropy_loss_and_accuracy
 from utils.dataset import NCaltech101
@@ -18,26 +20,26 @@ np.random.seed(1)
 
 
 def FLAGS():
+    # 生成对象
     parser = argparse.ArgumentParser("""Train classifier using a learnt quantization layer.""")
-
+    
+    # 添加参数
     # training / validation dataset
     parser.add_argument("--validation_dataset", default="", required=True)
     parser.add_argument("--training_dataset", default="", required=True)
-
     # logging options
     parser.add_argument("--log_dir", default="", required=True)
-
     # loader and device options
     parser.add_argument("--device", default="cuda:0")
     parser.add_argument("--num_workers", type=int, default=4)
     parser.add_argument("--pin_memory", type=bool, default=True)
     parser.add_argument("--batch_size", type=int, default=4)
-
     parser.add_argument("--num_epochs", type=int, default=30)
     parser.add_argument("--save_every_n_epochs", type=int, default=5)
 
     flags = parser.parse_args()
-
+   
+# 判断是否存在这个目录
     assert os.path.isdir(dirname(flags.log_dir)), f"Log directory root {dirname(flags.log_dir)} not found."
     assert os.path.isdir(flags.validation_dataset), f"Validation dataset directory {flags.validation_dataset} not found."
     assert os.path.isdir(flags.training_dataset), f"Training dataset directory {flags.training_dataset} not found."
@@ -57,7 +59,9 @@ def FLAGS():
 def percentile(t, q):
     B, C, H, W = t.shape
     k = 1 + round(.01 * float(q) * (C * H * W - 1))
+    
     result = t.view(B, -1).kthvalue(k).values
+    
     return result[:,None,None,None]
 
 def create_image(representation):
@@ -66,6 +70,7 @@ def create_image(representation):
 
     # do robust min max norm
     representation = representation.detach().cpu()
+    
     robust_max_vals = percentile(representation, 99)
     robust_min_vals = percentile(representation, 1)
 
