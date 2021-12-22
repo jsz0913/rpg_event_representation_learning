@@ -23,6 +23,7 @@ def random_flip_events_along_x(events, resolution=(180, 240), p=0.5):
 
 class NCaltech101:
     def __init__(self, root, augmentation=False):
+        # 路径下文件名列表
         self.classes = listdir(root)
 
         self.files = []
@@ -31,7 +32,10 @@ class NCaltech101:
         self.augmentation = augmentation
 
         for i, c in enumerate(self.classes):
+            # i 是 从 0 开始循环
+            # root下每个文件夹下所有文件名
             new_files = [join(root, c, f) for f in listdir(join(root, c))]
+            # 列表加号也行
             self.files += new_files
             self.labels += [i] * len(new_files)
 
