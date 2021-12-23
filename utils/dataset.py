@@ -5,16 +5,16 @@ from os.path import join
 
 def random_shift_events(events, max_shift=20, resolution=(180, 240)):
     H, W = resolution
+    # 把事件漂移，筛选
     x_shift, y_shift = np.random.randint(-max_shift, max_shift+1, size=(2,))
     events[:,0] += x_shift
     events[:,1] += y_shift
-
     valid_events = (events[:,0] >= 0) & (events[:,0] < W) & (events[:,1] >= 0) & (events[:,1] < H)
     events = events[valid_events]
 
     return events
 
-def random_flip_events_along_x(events, resolution=(180, 240), p=0.5):
+def random_flip_events_along_x(events, resolution=(180, 240), p = 0.5):
     H, W = resolution
     if np.random.random() < p:
         events[:,0] = W - 1 - events[:,0]
@@ -48,8 +48,10 @@ class NCaltech101:
         :param idx:
         :return: x,y,t,p,  label
         """
+        # 标签 是 数字
         label = self.labels[idx]
         f = self.files[idx]
+        # npy中返回数组
         events = np.load(f).astype(np.float32)
 
         if self.augmentation:
