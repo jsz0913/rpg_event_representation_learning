@@ -5,10 +5,15 @@ from torch.utils.data.dataloader import default_collate
 
 
 class Loader:
+    # dataset为class flags为class 
     def __init__(self, dataset, flags, device):
         self.device = device
-        split_indices = list(range(len(dataset)))
+        # 0 到 所有npy名字
+        split_indices = list(range(len(dataset))) # 对象必须定义 __len__
+        # 
         sampler = torch.utils.data.sampler.SubsetRandomSampler(split_indices)
+        
+        
         self.loader = torch.utils.data.DataLoader(dataset, batch_size=flags.batch_size, sampler=sampler,
                                              num_workers=flags.num_workers, pin_memory=flags.pin_memory,
                                              collate_fn=collate_events)
