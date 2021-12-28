@@ -8,7 +8,7 @@ import tqdm
 
 
 class ValueLayer(nn.Module):
-    def __init__(self, mlp_layers, activation=nn.ReLU(), num_channels=9):
+    def __init__(self, mlp_layers, activation=nn.ReLU(), num_channels = 9):
         assert mlp_layers[-1] == 1, "Last layer of the mlp must have 1 input channel."
         assert mlp_layers[0] == 1, "First layer of the mlp must have 1 output channel"
 
@@ -20,15 +20,18 @@ class ValueLayer(nn.Module):
         self.activation = activation
 
         # create mlp
+        # mlp_layers 包含所有的每层通道
         in_channels = 1
         for out_channels in mlp_layers[1:]:
             self.mlp.append(nn.Linear(in_channels, out_channels))
             in_channels = out_channels
 
         # init with trilinear kernel
+        # __file__ = uitils/
+        # os.path.join
         path = join(dirname(__file__), "quantization_layer_init", "trilinear_init.pth")
         if isfile(path):
-            state_dict = torch.load(path)
+            state_dict = torch.load(path) # 加载训练好的模型
             self.load_state_dict(state_dict)
         else:
             self.init_kernel(num_channels)
@@ -40,8 +43,9 @@ class ValueLayer(nn.Module):
         # apply mlp convolution
         for i in range(len(self.mlp[:-1])):
             x = self.activation(self.mlp[i](x))
-
+        # 最后一层在外面输入，因为没有激活函数
         x = self.mlp[-1](x)
+        # 去掉维度为1的维度
         x = x.squeeze()
 
         return x
@@ -86,27 +90,33 @@ class QuantizationLayer(nn.Module):
     def __init__(self, dim,
                  mlp_layers=[1, 100, 100, 1],
                  activation=nn.LeakyReLU(negative_slope=0.1)):
+        
         nn.Module.__init__(self)
+        
         self.value_layer = ValueLayer(mlp_layers,
-                                      activation=activation,
-                                      num_channels=dim[0])
+                                      activation = activation,
+                                      num_channels = dim[0])
         self.dim = dim
 
     def forward(self, events):
         # points is a list, since events can have any size
-        B = int((1+events[-1,-1]).item())
-        num_voxels = int(2 * np.prod(self.dim) * B)
+        
+        B = int( ( 1 + events[-1,-1] ).item() )
+        # 连乘
+        num_voxels = int(2 * np.prod(self.dim) * B )
+        
         vox = events[0].new_full([num_voxels,], fill_value=0)
+        
         C, H, W = self.dim
-
+        
+        # 
         # get values for each channel
         x, y, t, p, b = events.t()
 
         # normalizing timestamps
         for bi in range(B):
             t[events[:,-1] == bi] /= t[events[:,-1] == bi].max()
-
-        p = (p+1)/2  # maps polarity to 0, 1
+        p = ( p + 1 ) / 2  # maps polarity to 0, 1
 
         idx_before_bins = x \
                           + W * y \
@@ -131,7 +141,7 @@ class Classifier(nn.Module):
     def __init__(self,
                  voxel_dimension=(9,180,240),  # dimension of voxel will be C x 2 x H x W
                  crop_dimension=(224, 224),  # dimension of crop before it goes into classifier
-                 num_classes=101,
+                 num_classes= 101,
                  mlp_layers=[1, 30, 30, 1],
                  activation=nn.LeakyReLU(negative_slope=0.1),
                  pretrained=True):
