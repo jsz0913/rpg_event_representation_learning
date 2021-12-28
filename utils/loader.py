@@ -20,6 +20,9 @@ class Loader:
     # 凡是可以for循环的，都是Iterable
     # 凡是可以next()的，都是Iterator
     def __iter__(self): # 代表Iterable
+        # data 为 batch 的大小 
+        # 里面的事件 有 batch个 文件 的 集合
+        
         for data in self.loader:
             data = [d.to(self.device) for d in data]
             yield data
