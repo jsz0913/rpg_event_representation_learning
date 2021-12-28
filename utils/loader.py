@@ -27,17 +27,21 @@ class Loader:
     def __len__(self):
         return len(self.loader)
 
-# data与上同，都代表一个batch的events
 def collate_events(data):
     labels = []
     events = []
     # 需要弄清data到底是什么
+    # data 是 batchsize 大小的列表
+    # 每一个值都是 dataset[index]
     for i, d in enumerate(data):
         labels.append(d[1])
-        # 某一维度的拼接
+        # d[0] 对应 events N * 4
+        # x y t p i  (i代表第几个)
         ev = np.concatenate( [d[0]   , i * np.ones((len(d[0]),1), dtype=np.float32)   ] ,  1)
         events.append(ev)
-    # events 最终排成一行 
+    # events
+    # 去掉列表最外层维度
+    # x y t p i
     events = torch.from_numpy(np.concatenate(events,0))
     labels = default_collate(labels)
     return events, labels
