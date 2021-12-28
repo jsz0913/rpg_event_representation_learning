@@ -13,7 +13,10 @@ class ValueLayer(nn.Module):
         assert mlp_layers[0] == 1, "First layer of the mlp must have 1 output channel"
 
         nn.Module.__init__(self)
+        
         self.mlp = nn.ModuleList()
+        
+        # 激活函数
         self.activation = activation
 
         # create mlp
