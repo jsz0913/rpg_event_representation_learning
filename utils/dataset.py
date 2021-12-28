@@ -20,7 +20,7 @@ def random_flip_events_along_x(events, resolution=(180, 240), p = 0.5):
         events[:,0] = W - 1 - events[:,0]
     return events
 
-
+## dataset必须包含 __len__   __getitem__
 class NCaltech101:
     def __init__(self, root, augmentation=False):
         # 路径下文件名列表
