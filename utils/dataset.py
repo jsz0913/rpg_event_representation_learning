@@ -34,8 +34,9 @@ class NCaltech101:
         for i, c in enumerate(self.classes):
             # i 是 从 0 开始循环
             # root下每个文件夹下所有文件名
+            # root/c/f
             new_files = [join(root, c, f) for f in listdir(join(root, c))]
-            # 列表加号也行
+            # 列表用加号也行
             self.files += new_files
             self.labels += [i] * len(new_files)
 
@@ -51,7 +52,7 @@ class NCaltech101:
         # 标签 是 数字
         label = self.labels[idx]
         f = self.files[idx]
-        # npy中返回数组
+        # npy中返回numpy数组
         events = np.load(f).astype(np.float32)
 
         if self.augmentation:
