@@ -38,7 +38,8 @@ class NCaltech101:
             new_files = [join(root, c, f) for f in listdir(join(root, c))]
             # 列表用加号也行
             self.files += new_files
-            self.labels += [i] * len(new_files)
+            # len(new_files) 个 i
+            self.labels += [i] * len(new_files)  
 
     def __len__(self):
         return len(self.files)
