@@ -31,12 +31,13 @@ class Loader:
 def collate_events(data):
     labels = []
     events = []
-    # event  x y t i i i 1 0 ?
+    # 需要弄清data到底是什么
     for i, d in enumerate(data):
         labels.append(d[1])
+        # 某一维度的拼接
         ev = np.concatenate( [d[0]   , i * np.ones((len(d[0]),1), dtype=np.float32)   ] ,  1)
         events.append(ev)
-        
+    # events 最终排成一行 
     events = torch.from_numpy(np.concatenate(events,0))
     labels = default_collate(labels)
     return events, labels
