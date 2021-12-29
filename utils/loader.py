@@ -23,6 +23,8 @@ class Loader:
         # data 元组 一个是N*4数组  一个是列表label
         # for 循环时取出来的元组里每个位置整个 
         # data = [events,labels]
+        # python列表可以赋值多个
+        # events ， labels = data
         for data in self.loader:
             data = [d.to(self.device) for d in data]
             yield data
