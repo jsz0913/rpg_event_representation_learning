@@ -135,9 +135,8 @@ class QuantizationLayer(nn.Module):
         # 先分 B ，再分极性，再分通道数，再分 H 和 W
         # B * 2 * C * H * W
         vox = vox.view(-1, 2, C, H, W)
-        # B
+        # 拼接少一维度 B * (2*C) * H * W
         vox = torch.cat([vox[:, 0, ...], vox[:, 1, ...]], 1)
-
         return vox
 
 
@@ -152,7 +151,6 @@ class Classifier(nn.Module):
 
         nn.Module.__init__(self)
         self.quantization_layer = QuantizationLayer(voxel_dimension, mlp_layers, activation)
-        
         # 预训练模型
         self.classifier = resnet34(pretrained=pretrained)
         self.crop_dimension = crop_dimension
@@ -160,20 +158,23 @@ class Classifier(nn.Module):
         input_channels =  2 * voxel_dimension[0]
         # 输入通道数为 2 * C
         self.classifier.conv1 = nn.Conv2d(input_channels, 64, kernel_size = 7, stride = 2, padding = 3, bias = False)
-        
         self.classifier.fc = nn.Linear(self.classifier.fc.in_features, num_classes)
 
     # 更改体素小
     def crop_and_resize_to_resolution(self, x, output_resolution = (224, 224)):
+        # B * (2*C) * H * W
+        # 此时tensor变成多维
         B, C, H, W = x.shape
         if H > W:
             h = H // 2
             x = x[:, :, h - W // 2:h + W // 2, :]
         else:
             # // 整数除法
-            h = W // 2
+            h = W // 2 # 中心值 
             x = x[:, :, :, h - H // 2:h + H // 2]
-        # mini-batch x channels x [optional depth] x [optional height] x width.
+        # 将 H W 较小者 裁减
+        # 使得 H = W = R     
+        # B 2*C R R
         x = F.interpolate(x, size = output_resolution)
         return x
 
