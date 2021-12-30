@@ -33,8 +33,8 @@ class ValueLayer(nn.Module):
             self.init_kernel(num_channels)
 
     def forward(self, x):
-        # x  = t - i_bin / ( C - 1 ) = ts
-        
+        # x 为跟当前通道的差值 把它当作 |t|  delta t 为 通道间的距离
+        # 这样对于任何通道，就变成了 |t| 有多大的区别
         
         # create sample of batchsize 1 and input channels 1
         # 每一行叫做样本，每一列叫做特征
@@ -62,6 +62,7 @@ class ValueLayer(nn.Module):
             # gt
             gt_values = self.trilinear_kernel(ts, num_channels)
             # pred
+            # ts 同样为 跟 当前通道的插值
             values = self.forward(ts)
             # optimize
             loss = (values - gt_values).pow(2).sum()
@@ -69,15 +70,13 @@ class ValueLayer(nn.Module):
             optim.step()
     
     def trilinear_kernel(self, ts, num_channels):
-        # max(0,1 - |t| / delta t)
-        #  (num_channels - 1) == 1 / delta t           
+        # max(0,1 - |t| / delta t)  
         gt_values = torch.zeros_like(ts)
         gt_values[ts > 0] = ( 1 - (num_channels - 1) * ts)[ts > 0] # 后面是索引 
         gt_values[ts < 0] = ( (num_channels - 1) * ts + 1)[ts < 0]
         # 
         gt_values[ts < -1.0 / ( num_channels - 1 ) ] = 0
         gt_values[ts > 1.0 / ( num_channels - 1)] = 0
-
         return gt_values
 
 
@@ -85,7 +84,6 @@ class QuantizationLayer(nn.Module):
     def __init__(self, dim,
                  mlp_layers = [1, 100, 100, 1],
                  activation = nn.LeakyReLU(negative_slope = 0.1)):
-        
         nn.Module.__init__(self)
         # C H W
         self.value_layer = ValueLayer(mlp_layers,activation = activation,num_channels = dim[0])
@@ -125,18 +123,19 @@ class QuantizationLayer(nn.Module):
                           + 0 \
                           + W * H * C * p \
                           + W * H * C * 2 * b # 注意这里计算了所有的
-        # 一个t在每个通道上都有影响
+        # 一个 t 在每个通道上都有影响
         # get values for each channel
         for i_bin in range(C):
             # t * 插值结果
             values = t * self.value_layer.forward( t - i_bin / ( C - 1 ) )
             # draw in voxel grid
-        
             idx = idx_before_bins + W * H * i_bin
             vox.put_(idx.long(), values, accumulate = True)
-        
+        # 根据存的顺序反推
+        # 先分 B ，再分极性，再分通道数，再分 H 和 W
         # B * 2 * C * H * W
         vox = vox.view(-1, 2, C, H, W)
+        # B
         vox = torch.cat([vox[:, 0, ...], vox[:, 1, ...]], 1)
 
         return vox
@@ -145,40 +144,43 @@ class QuantizationLayer(nn.Module):
 class Classifier(nn.Module):
     def __init__(self,
                  voxel_dimension = (9,180,240),  # dimension of voxel will be C x 2 x H x W
-                 crop_dimension=(224, 224),  # dimension of crop before it goes into classifier
-                 num_classes= 101,
+                 crop_dimension = (224, 224),  # dimension of crop before it goes into classifier
+                 num_classes = 101,
                  mlp_layers = [1, 30, 30, 1],
                  activation = nn.LeakyReLU(negative_slope = 0.1),
-                 pretrained =True):
+                 pretrained = True):
 
         nn.Module.__init__(self)
         self.quantization_layer = QuantizationLayer(voxel_dimension, mlp_layers, activation)
         
         # 预训练模型
         self.classifier = resnet34(pretrained=pretrained)
-        # 
         self.crop_dimension = crop_dimension
-
         # replace fc layer and first convolutional layer
         input_channels =  2 * voxel_dimension[0]
-        self.classifier.conv1 = nn.Conv2d(input_channels, 64, kernel_size=7, stride=2, padding=3, bias=False)
+        # 输入通道数为 2 * C
+        self.classifier.conv1 = nn.Conv2d(input_channels, 64, kernel_size = 7, stride = 2, padding = 3, bias = False)
+        
         self.classifier.fc = nn.Linear(self.classifier.fc.in_features, num_classes)
 
     # 更改体素小
-    def crop_and_resize_to_resolution(self, x, output_resolution=(224, 224)):
+    def crop_and_resize_to_resolution(self, x, output_resolution = (224, 224)):
         B, C, H, W = x.shape
         if H > W:
             h = H // 2
             x = x[:, :, h - W // 2:h + W // 2, :]
         else:
+            # // 整数除法
             h = W // 2
             x = x[:, :, :, h - H // 2:h + H // 2]
-        x = F.interpolate(x, size=output_resolution)
+        # mini-batch x channels x [optional depth] x [optional height] x width.
+        x = F.interpolate(x, size = output_resolution)
         return x
 
     def forward(self, x):
         vox = self.quantization_layer.forward(x)
         vox_cropped = self.crop_and_resize_to_resolution(vox, self.crop_dimension)
+        # 2 * C 通道
         pred = self.classifier.forward(vox_cropped)
         return pred, vox
 
